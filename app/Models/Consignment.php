@@ -28,6 +28,15 @@ class Consignment extends Model
         "client_id",
     ];
 
+    protected $hidden = [
+        "client_id",
+        "courier_id",
+        "id",
+        "created_at",
+        "updated_at",
+        "deleted_at"
+    ];
+
     protected static function boot()
     {
         parent::boot();
