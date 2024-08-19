@@ -15,4 +15,9 @@ class Client extends Model
     {
         return $this->hasMany(Consignment::class);
     }
+
+    public function webhookSubscriptions(): HasMany
+    {
+        return $this->hasMany(WebHookSubscription::class);
+    }
 }
