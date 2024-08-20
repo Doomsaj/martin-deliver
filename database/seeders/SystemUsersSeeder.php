@@ -15,12 +15,12 @@ class SystemUsersSeeder extends Seeder
     public function run(): void
     {
         $clientData = [
-            ["username" => fake()->unique()->userName(), "password" => Hash::make('password')],
+            ["username" => "client", "password" => Hash::make('password')],
             ["username" => fake()->unique()->userName(), "password" => Hash::make('password')],
         ];
 
         $courierData = [
-            ["username" => fake()->unique()->userName(), "password" => Hash::make('password')],
+            ["username" => "courier", "password" => Hash::make('password')],
             ["username" => fake()->unique()->userName(), "password" => Hash::make('password')],
             ["username" => fake()->unique()->userName(), "password" => Hash::make('password')],
             ["username" => fake()->unique()->userName(), "password" => Hash::make('password')],
