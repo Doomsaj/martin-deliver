@@ -21,6 +21,9 @@ You can find API docs on [martin-deliver-api-documentation.md](martin-deliver-ap
   composer install
   cp .env.example .env
   php artisan key:generate
+  touch ./database/database.sqlite
+  php artisan migrate
+  php artisan db:seed --class=SystemUsersSeeder
   ```
 - **Redis**:
   ```shell
@@ -37,3 +40,17 @@ You can find API docs on [martin-deliver-api-documentation.md](martin-deliver-ap
   ```shell
   php artisan queue:work --queue=webhook-calls,consignment_status_events,courier_location_events
   ```
+
+## 3.Explain
+
+This application uses sqlite as database and redis queue and lock backend.
+This app have some default users:
+
+- Client:
+    - username: client
+    - password: password
+- Courier:
+    - username: courier
+    - password: password
+
+The authentication and authorization implemented with sanctum via a simple access token.
