@@ -3,13 +3,11 @@
 namespace App\Services;
 
 use App\Contract\IClientWebhookService;
-use App\Http\Requests\DeleteWebhookSubscription;
 use App\Http\Requests\NewWebhookSubscription;
 use App\Models\WebhookSubscription;
 
 class ClientWebhookService implements IClientWebhookService
 {
-
     function newWebhookSubscription(NewWebhookSubscription $request): array
     {
         $data = $request->validated();
@@ -23,10 +21,5 @@ class ClientWebhookService implements IClientWebhookService
         ]);
 
         return ["subscription" => $subscription, "created" => true];
-    }
-
-    function deleteWebhookSubscription(DeleteWebhookSubscription $request)
-    {
-        // TODO: Implement deleteWebhookSubscription() method.
     }
 }
