@@ -13,7 +13,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->alias(["check.token" => App\Http\Middleware\CheckAuthToken::class]);
         $middleware->alias(["token.role" => App\Http\Middleware\CheckTokenRole::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
