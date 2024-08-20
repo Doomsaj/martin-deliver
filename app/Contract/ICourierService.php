@@ -5,7 +5,7 @@ namespace App\Contract;
 use App\Http\Requests\CourierAcceptConsignment;
 use App\Http\Requests\CourierConsignmentArrived;
 use App\Http\Requests\CourierConsignmentReceived;
-use App\Http\Requests\CourierLocationChanged;
+use App\Http\Requests\CourierLocationChangedRequest;
 
 interface ICourierService
 {
@@ -19,5 +19,5 @@ interface ICourierService
 
     function consignmentArrived(CourierConsignmentArrived $request);
 
-    function courierLocationChanged(CourierLocationChanged $request);
+    function courierLocationChanged(CourierLocationChangedRequest $request);
 }

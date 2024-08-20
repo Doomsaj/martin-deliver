@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Contract\ICourierService;
 use App\Http\Requests\CourierAcceptConsignment;
+use App\Http\Requests\CourierLocationChangedRequest;
 
 class CourierController extends Controller
 {
@@ -19,5 +20,16 @@ class CourierController extends Controller
     public function acceptConsignment(CourierAcceptConsignment $request)
     {
         return response()->json($this->courierService->acceptConsignment($request));
+    }
+
+    public function updateCourierLocation(CourierLocationChangedRequest $request)
+    {
+        $this->courierService->courierLocationChanged($request);
+        return response()->json(["updated" => true]);
+    }
+
+    public function getMyConsignments()
+    {
+        return response()->json(["data" => $this->courierService->getMyConsignments()]);
     }
 }

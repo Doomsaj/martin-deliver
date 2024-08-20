@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Contract\ICourierService;
 use App\Enums\ConsignmentStatus;
+use App\Enums\WebhookTriggerEvents;
 use App\Events\ConsignmentStatusChanged;
+use App\Events\CourierLocationChangedEvent;
+use App\Exceptions\AccessDeniedException;
 use App\Exceptions\ConsignmentAlreadyAcceptedException;
 use App\Exceptions\InternalServerException;
 use App\Exceptions\NotFoundException;
@@ -12,6 +15,7 @@ use App\Http\Requests\ConsignmentStatusChangedData;
 use App\Http\Requests\CourierAcceptConsignment;
 use App\Http\Requests\CourierConsignmentArrived;
 use App\Http\Requests\CourierConsignmentReceived;
+use App\Http\Requests\CourierLocationChangedData;
 use App\Http\Requests\CourierLocationChangedRequest;
 use App\Models\Consignment;
 use Exception;
@@ -90,8 +94,31 @@ class CourierService implements ICourierService
         // TODO: Implement consignmentArrived() method.
     }
 
-    function courierLocationChanged(CourierLocationChangedRequest $request)
+    /**
+     * @throws NotFoundException
+     * @throws AccessDeniedException
+     */
+    function courierLocationChanged(CourierLocationChangedRequest $request): void
     {
-        // TODO: Implement courierLocationChanged() method.
+        $data = $request->validated();
+
+        $consignment = Consignment::with(["client", "client.webhookSubscriptions"])->where("code", "=", $data["consignment_code"])->first();
+
+        if (!$consignment) throw new NotFoundException();
+        if ($consignment->courier_id != auth()->user()->id) throw new AccessDeniedException();
+
+        $consignmentClient = $consignment->client;
+        $clientWebhook = $consignmentClient->webhookSubscriptions
+            ->where("event", "=", WebhookTriggerEvents::COURIER_LOCATION_CHANGED)
+            ->first();
+
+        $locationChangedData = new CourierLocationChangedData(
+            $data["latitude"],
+            $data["longitude"],
+            $data["consignment_code"],
+            $consignment->id,
+            auth()->user()->id);
+
+        CourierLocationChangedEvent::dispatch($locationChangedData, $clientWebhook);
     }
 }
