@@ -11,6 +11,7 @@ use App\Exceptions\AccessDeniedException;
 use App\Exceptions\ConsignmentAlreadyAcceptedException;
 use App\Exceptions\InternalServerException;
 use App\Exceptions\NotFoundException;
+use App\Exceptions\RestException;
 use App\Http\Requests\ConsignmentStatusChangedData;
 use App\Http\Requests\CourierAcceptConsignment;
 use App\Http\Requests\CourierConsignmentArrived;
@@ -84,9 +85,47 @@ class CourierService implements ICourierService
         }
     }
 
-    function consignmentReceived(CourierConsignmentReceived $request)
+    /**
+     * @throws AccessDeniedException
+     * @throws NotFoundException
+     * @throws InternalServerException
+     * @throws RestException
+     */
+    function consignmentReceived(CourierConsignmentReceived $request): array
     {
-        // TODO: Implement consignmentReceived() method.
+        try {
+            $data = $request->validated();
+
+            $consignment = Consignment::with(["client", "client.webhookSubscriptions"])->where("code", "=", $data["consignment_code"])->first();
+            $consignmentCode = $data["consignment_code"];
+
+            if (!$consignment) throw new NotFoundException();
+            if ($consignment->courier_id != auth()->user()->id) throw new AccessDeniedException();
+
+            DB::transaction(function () use ($consignmentCode) {
+                $affectedRows = Consignment::where('code', $consignmentCode)
+                    ->where('status', ConsignmentStatus::ACCEPTED)
+                    ->update([
+                        "status" => ConsignmentStatus::IN_PROGRESS,
+                        "updated_at" => now(),
+                        "started_at" => now(),
+                    ]);
+
+                $changeData = new ConsignmentStatusChangedData($consignmentCode,
+                    ConsignmentStatus::ACCEPTED,
+                    ConsignmentStatus::IN_PROGRESS,
+                    now());
+
+                ConsignmentStatusChanged::dispatch($changeData);
+            });
+
+            return ['status' => 'success', 'message' => 'Request updated'];
+        } catch (RestException $e) {
+            throw $e;
+        } catch (Exception $e) {
+            Log::error($e->getMessage(), $e->getTrace());
+            throw new InternalServerException();
+        }
     }
 
     function consignmentArrived(CourierConsignmentArrived $request)
