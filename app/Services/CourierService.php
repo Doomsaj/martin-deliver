@@ -8,6 +8,7 @@ use App\Enums\WebhookTriggerEvents;
 use App\Events\ConsignmentStatusChanged;
 use App\Events\CourierLocationChangedEvent;
 use App\Exceptions\AccessDeniedException;
+use App\Exceptions\BadRequestException;
 use App\Exceptions\ConsignmentAlreadyAcceptedException;
 use App\Exceptions\InternalServerException;
 use App\Exceptions\NotFoundException;
@@ -40,6 +41,7 @@ class CourierService implements ICourierService
      * @throws ConsignmentAlreadyAcceptedException
      * @throws InternalServerException
      * @throws NotFoundException
+     * @throws RestException
      */
     function acceptConsignment(CourierAcceptConsignment $request): array
     {
@@ -72,7 +74,7 @@ class CourierService implements ICourierService
                 });
 
                 return ['status' => 'success', 'message' => 'Request accepted'];
-            } catch (ConsignmentAlreadyAcceptedException $e) {
+            } catch (RestException $e) {
                 throw $e;
             } catch (Exception $e) {
                 Log::error($e->getMessage(), $e->getTrace());
@@ -96,11 +98,13 @@ class CourierService implements ICourierService
         try {
             $data = $request->validated();
 
-            $consignment = Consignment::with(["client", "client.webhookSubscriptions"])->where("code", "=", $data["consignment_code"])->first();
+            $consignment = Consignment::with(["client"])->where("code", "=", $data["consignment_code"])->first();
             $consignmentCode = $data["consignment_code"];
 
             if (!$consignment) throw new NotFoundException();
             if ($consignment->courier_id != auth()->user()->id) throw new AccessDeniedException();
+            if ($consignment->status == ConsignmentStatus::PENDING) throw new BadRequestException("consignment is already in progress");
+            if ($consignment->status != ConsignmentStatus::ACCEPTED) throw new BadRequestException("consignment is not accepted");
 
             DB::transaction(function () use ($consignmentCode) {
                 $affectedRows = Consignment::where('code', $consignmentCode)
@@ -128,36 +132,85 @@ class CourierService implements ICourierService
         }
     }
 
-    function consignmentArrived(CourierConsignmentArrived $request)
+    /**
+     * @throws InternalServerException
+     * @throws AccessDeniedException
+     * @throws NotFoundException
+     * @throws RestException
+     */
+    function consignmentArrived(CourierConsignmentArrived $request): array
     {
-        // TODO: Implement consignmentArrived() method.
+        try {
+            $data = $request->validated();
+
+            $consignment = Consignment::with(["client"])->where("code", "=", $data["consignment_code"])->first();
+            $consignmentCode = $data["consignment_code"];
+
+            if (!$consignment) throw new NotFoundException();
+            if ($consignment->courier_id != auth()->user()->id) throw new AccessDeniedException();
+            if ($consignment->status == ConsignmentStatus::COMPLETED) throw new BadRequestException("consignment is already completed");
+            if ($consignment->status != ConsignmentStatus::IN_PROGRESS) throw new BadRequestException("consignment is not started");
+
+            DB::transaction(function () use ($consignmentCode) {
+                $affectedRows = Consignment::where('code', $consignmentCode)
+                    ->where('status', ConsignmentStatus::IN_PROGRESS)
+                    ->update([
+                        "status" => ConsignmentStatus::COMPLETED,
+                        "updated_at" => now(),
+                        "finished_at" => now(),
+                    ]);
+
+                $changeData = new ConsignmentStatusChangedData($consignmentCode,
+                    ConsignmentStatus::IN_PROGRESS,
+                    ConsignmentStatus::COMPLETED,
+                    now());
+
+                ConsignmentStatusChanged::dispatch($changeData);
+            });
+
+            return ['status' => 'success', 'message' => 'Request updated'];
+        } catch (RestException $e) {
+            throw $e;
+        } catch (Exception $e) {
+            Log::error($e->getMessage(), $e->getTrace());
+            throw new InternalServerException();
+        }
     }
 
     /**
      * @throws NotFoundException
      * @throws AccessDeniedException
+     * @throws InternalServerException
+     * @throws RestException
      */
     function courierLocationChanged(CourierLocationChangedRequest $request): void
     {
-        $data = $request->validated();
+        try {
+            $data = $request->validated();
 
-        $consignment = Consignment::with(["client", "client.webhookSubscriptions"])->where("code", "=", $data["consignment_code"])->first();
+            $consignment = Consignment::with(["client", "client.webhookSubscriptions"])->where("code", "=", $data["consignment_code"])->first();
 
-        if (!$consignment) throw new NotFoundException();
-        if ($consignment->courier_id != auth()->user()->id) throw new AccessDeniedException();
+            if (!$consignment) throw new NotFoundException();
+            if ($consignment->courier_id != auth()->user()->id) throw new AccessDeniedException();
 
-        $consignmentClient = $consignment->client;
-        $clientWebhook = $consignmentClient->webhookSubscriptions
-            ->where("event", "=", WebhookTriggerEvents::COURIER_LOCATION_CHANGED)
-            ->first();
+            $consignmentClient = $consignment->client;
+            $clientWebhook = $consignmentClient->webhookSubscriptions
+                ->where("event", "=", WebhookTriggerEvents::COURIER_LOCATION_CHANGED)
+                ->first();
 
-        $locationChangedData = new CourierLocationChangedData(
-            $data["latitude"],
-            $data["longitude"],
-            $data["consignment_code"],
-            $consignment->id,
-            auth()->user()->id);
+            $locationChangedData = new CourierLocationChangedData(
+                $data["latitude"],
+                $data["longitude"],
+                $data["consignment_code"],
+                $consignment->id,
+                auth()->user()->id);
 
-        CourierLocationChangedEvent::dispatch($locationChangedData, $clientWebhook);
+            CourierLocationChangedEvent::dispatch($locationChangedData, $clientWebhook);
+        } catch (RestException $e) {
+            throw $e;
+        } catch (Exception $e) {
+            Log::error($e->getMessage(), $e->getTrace());
+            throw new InternalServerException();
+        }
     }
 }

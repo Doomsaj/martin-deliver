@@ -17,6 +17,7 @@ Route::prefix("courier")->group(function () {
             Route::post("update-location", [CourierController::class, "updateCourierLocation"]);
             Route::get("assigned-to-me", [CourierController::class, "getMyConsignments"]);
             Route::post("received", [CourierController::class, "consignmentReceived"]);
+            Route::post("arrived", [CourierController::class, "consignmentArrived"]);
         });
     });
 });
