@@ -41,18 +41,20 @@ class ConsignmentStatusListener implements ShouldQueue
             $consignment = Consignment::with(["client", "client.webhookSubscriptions"])->where(["code" => $data->consignmentCode])->first();
             $consignmentClient = $consignment->client;
 
-            $webhookSub = $consignmentClient->webhookSubscriptions->where("event", "=", WebhookTriggerEvents::CONSIGNMENT_STATUS_CHANGED)->first();
+            $webhookSubs = $consignmentClient->webhookSubscriptions->where("event", "=", WebhookTriggerEvents::CONSIGNMENT_STATUS_CHANGED)->get()->toArray();
 
-            if (!is_null($webhookSub)) {
-                $data = [
-                    "consignmentCode" => $data->consignmentCode,
-                    "prev_status" => $data->prevStatus,
-                    "current_status" => $data->currentStatus,
-                    "timestamp" => $data->date
-                ];
+            if (count($webhookSubs) > 0) {
+                foreach ($webhookSubs as $webhookSub) {
+                    $data = [
+                        "consignmentCode" => $data->consignmentCode,
+                        "prev_status" => $data->prevStatus,
+                        "current_status" => $data->currentStatus,
+                        "timestamp" => $data->date
+                    ];
 
-                $callWebhookData = new CallWebhookData($webhookSub->url, $webhookSub->secret, $webhookSub->method, $data);
-                CallClientWebhook::dispatch($callWebhookData);
+                    $callWebhookData = new CallWebhookData($webhookSub->url, $webhookSub->secret, $webhookSub->method, $data);
+                    CallClientWebhook::dispatch($callWebhookData);
+                }
             }
         } catch (Exception $e) {
             Log::error($e->getMessage());
