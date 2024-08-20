@@ -7,14 +7,13 @@ use App\Models\WebhookCallHistory;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Http;
 use Log;
 
 class CallClientWebhook implements ShouldQueue
 {
-    use Queueable, InteractsWithQueue, Dispatchable;
+    use  InteractsWithQueue, Dispatchable;
 
     /**
      * The name of the queue the job should be sent to.

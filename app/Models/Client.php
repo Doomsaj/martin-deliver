@@ -18,6 +18,6 @@ class Client extends Model
 
     public function webhookSubscriptions(): HasMany
     {
-        return $this->hasMany(WebHookSubscription::class);
+        return $this->hasMany(WebhookSubscription::class);
     }
 }
